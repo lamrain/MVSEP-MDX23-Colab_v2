@@ -672,72 +672,27 @@ class EnsembleDemucsMDXMusicSeparationModel:
             audio = np.expand_dims(instrum.T, axis=0)
             audio = torch.from_numpy(audio).type('torch.FloatTensor').to(self.device)
             all_outs = []
-            print('Processing with htdemucs_ft...')
-            i = 0
-            overlap = overlap_demucs
-            model = pretrained.get_model('htdemucs_ft')
-            model.to(self.device)
-            out = 0.5 * apply_model(model, audio, shifts=shifts, overlap=overlap)[0].cpu().numpy() \
-                  + 0.5 * -apply_model(model, -audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
-       
-            out[0] = self.weights_drums[i] * out[0]
-            out[1] = self.weights_bass[i] * out[1]
-            out[2] = self.weights_other[i] * out[2]
-            out[3] = self.weights_vocals[i] * out[3]
-            all_outs.append(out)
-            model = model.cpu()
-            del model
-            gc.collect()
-            i = 1
-            print('Processing with htdemucs...')
-            overlap = overlap_demucs
-            model = pretrained.get_model('htdemucs')
-            model.to(self.device)
-            out = 0.5 * apply_model(model, audio, shifts=shifts, overlap=overlap)[0].cpu().numpy() \
-                  + 0.5 * -apply_model(model, -audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
-    
-            out[0] = self.weights_drums[i] * out[0]
-            out[1] = self.weights_bass[i] * out[1]
-            out[2] = self.weights_other[i] * out[2]
-            out[3] = self.weights_vocals[i] * out[3]
-            all_outs.append(out)
-            model = model.cpu()
-            del model
-            gc.collect()
-            i = 2
-            print('Processing with htdemucs_6s...')
-            overlap = overlap_demucs
-            model = pretrained.get_model('htdemucs_6s')
-            model.to(self.device)
-            out = apply_model(model, audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
-       
-            # More stems need to add
-            out[2] = out[2] + out[4] + out[5]
-            out = out[:4]
-            out[0] = self.weights_drums[i] * out[0]
-            out[1] = self.weights_bass[i] * out[1]
-            out[2] = self.weights_other[i] * out[2]
-            out[3] = self.weights_vocals[i] * out[3]
-            all_outs.append(out)
-            model = model.cpu()
-            del model
-            gc.collect()
-            i = 3
-            print('Processing with htdemucs_mmi...')
-            model = pretrained.get_model('hdemucs_mmi')
-            model.to(self.device)
-            out = 0.5 * apply_model(model, audio, shifts=shifts, overlap=overlap)[0].cpu().numpy() \
-                  + 0.5 * -apply_model(model, -audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
-       
-            out[0] = self.weights_drums[i] * out[0]
-            out[1] = self.weights_bass[i] * out[1]
-            out[2] = self.weights_other[i] * out[2]
-            out[3] = self.weights_vocals[i] * out[3]
-            all_outs.append(out)
-            model = model.cpu()
-            del model
-            gc.collect()
-            out = np.array(all_outs).sum(axis=0)
+            
+			model_names = ['htdemucs_ft', 'htdemucs', 'htdemucs_6s', 'hdemucs_mmi']
+            for i, model in enumerate(self.models):
+                print('Processing with {}'.format(model_names[i]))
+                overlap = overlap_demucs
+                if i == 2:
+                    out = apply_model(model, audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
+                    out[2] = out[2] + out[4] + out[5]
+                    out = out[:4]
+                else:
+                    out = 0.5 *  apply_model(model,  audio, shifts=shifts, overlap=overlap)[0].cpu().numpy() \
+                        + 0.5 * -apply_model(model, -audio, shifts=shifts, overlap=overlap)[0].cpu().numpy()
+
+                out[0] = self.weights_drums [i] * out[0]
+                out[1] = self.weights_bass  [i] * out[1]
+                out[2] = self.weights_other [i] * out[2]
+                out[3] = self.weights_vocals[i] * out[3]
+
+                all_outs.append(out)
+            
+			out = np.array(all_outs).sum(axis=0)
             out[0] = out[0] / self.weights_drums.sum()
             out[1] = out[1] / self.weights_bass.sum()
             out[2] = out[2] / self.weights_other.sum()
